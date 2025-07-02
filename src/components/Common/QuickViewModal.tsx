@@ -138,10 +138,10 @@ const QuickViewModal = () => {
                     </button>
 
                     <Image
-                      src={product?.imgs?.previews?.[activePreview]}
+                      src={product?.imgs?.previews?.[activePreview] || "https://via.placeholder.com/400"}
                       alt="products-details"
-                      width={400}
-                      height={400}
+                      width={200}
+                      height={200}
                     />
                   </div>
                 </div>
