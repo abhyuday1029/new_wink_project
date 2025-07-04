@@ -1,5 +1,4 @@
 // src/graphql/queries/getProducts.ts
-// src/graphql/queries/getProducts.ts
 import { gql } from "@apollo/client";
 
 export const GET_PRODUCTS = gql`
