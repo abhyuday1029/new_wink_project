@@ -1,7 +1,11 @@
-// // app/products/[url_key]/page.tsx
+"use client";
+
 import { gql } from "@apollo/client";
 import { getClient } from "@/lib/apolloClient";
+import { addToCart } from "@/lib/cart";
 import Image from "next/image";
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation"; // ✅ Use this instead of props
 
 const GET_PRODUCT_BY_URL_KEY = gql`
   query GetProductByUrlKey($urlKey: String!) {
@@ -30,47 +34,73 @@ const GET_PRODUCT_BY_URL_KEY = gql`
   }
 `;
 
-interface Params {
-  params: { url_key: string };
-}
+export default function ProductPage() {
+  const params = useParams(); // ✅ Correct way in a client component
+  const raw = params?.url_key as string;
+  const cleanKey = raw?.endsWith(".html") ? raw.replace(/\.html$/, "") : raw;
 
-export default async function ProductPage({ params }: Params) {
-  const raw = params.url_key;
-  const cleanKey = raw.endsWith(".html")
-    ? raw.replace(/\.html$/, "")
-    : raw;
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const client = getClient();
-  const { data, errors } = await client.query({
-    query: GET_PRODUCT_BY_URL_KEY,
-    variables: { urlKey: cleanKey },
-  });
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const client = getClient();
+        const { data } = await client.query({
+          query: GET_PRODUCT_BY_URL_KEY,
+          variables: { urlKey: cleanKey },
+        });
 
-  if (errors?.length) {
-    console.error(errors);
-    return <div>Error loading product.</div>;
-  }
+        setProduct(data?.products?.items?.[0]);
+      } catch (err) {
+        console.error(err);
+        setError("Failed to load product.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const product = data?.products?.items?.[0];
-  if (!product) return <div>Product not found.</div>;
+    if (cleanKey) {
+      fetchData();
+    }
+  }, [cleanKey]);
+
+  if (loading) return <div className="p-6">Loading...</div>;
+  if (error) return <div className="p-6 text-red-600">{error}</div>;
+  if (!product) return <div className="p-6">Product not found.</div>;
+
+  const imageUrl = product.image?.url?.startsWith("http")
+    ? product.image.url
+    : `https://magentodev.winkpayments.io${product.image?.url ?? "/placeholder.png"}`;
+
+  const handleAddToCart = async () => {
+    setAdding(true);
+    try {
+      await addToCart(product.sku, 1);
+      alert(`Added ${product.name} to cart!`);
+    } catch (e) {
+      alert("Failed to add to cart.");
+    } finally {
+      setAdding(false);
+    }
+  };
 
   return (
     <main className="p-6 mx-auto max-w-4xl">
       <h1 className="text-3xl font-bold">{product.name}</h1>
       <Image
-        src={
-          product.image.url.startsWith("http")
-            ? product.image.url
-            : `https://magentodev.winkpayments.io${product.image.url}`
-        }
-        alt={product.image.label}
+        src={imageUrl}
+        alt={product.image?.label || product.name}
         width={400}
         height={400}
         className="mt-4 mx-auto"
+        unoptimized
       />
       <div
         className="mt-4 prose max-w-none"
-        dangerouslySetInnerHTML={{ __html: product.description.html }}
+        dangerouslySetInnerHTML={{ __html: product.description?.html ?? "" }}
       />
       <p className="mt-6 text-xl">
         Price:{" "}
@@ -80,10 +110,17 @@ export default async function ProductPage({ params }: Params) {
         </strong>
       </p>
       <p className="mt-2 text-sm">SKU: {product.sku}</p>
+
+      <button
+        onClick={handleAddToCart}
+        disabled={adding}
+        className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded mt-6"
+      >
+        {adding ? "Adding..." : "Add to Cart"}
+      </button>
     </main>
   );
 }
-
 
 
 
