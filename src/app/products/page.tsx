@@ -5,6 +5,18 @@ import { getClient } from "@/lib/apolloClient";
 import { useState, useEffect } from "react";
 import { addToCart } from "@/lib/cart";
 
+// Optional: Map color labels to hex codes
+const COLOR_MAP: Record<string, string> = {
+  Blue: "#0000FF",
+  Red: "#FF0000",
+  Orange: "#FFA500",
+  Green: "#008000",
+  Black: "#000000",
+  White: "#FFFFFF",
+  Pink: "#FFC0CB",
+  Gray: "#808080",
+};
+
 const GET_PRODUCT_BY_URL_KEY = gql`
   query GetProductByUrlKey($urlKey: String!) {
     products(filter: { url_key: { eq: $urlKey } }) {
@@ -80,22 +92,18 @@ export default function ProductDetailPage({ params }: { params: { url_key: strin
     fetchProduct();
   }, [cleanUrlKey]);
 
-  if (loading) return <p>Loading...</p>;
-  if (error) return <p>{error}</p>;
-  if (!product) return <p>Product not found</p>;
+  const isConfigurable = product?.__typename === "ConfigurableProduct";
 
-  const isConfigurable = product.__typename === "ConfigurableProduct";
-
-  const imageUrl = product.small_image?.url?.startsWith("http")
+  const imageUrl = product?.small_image?.url?.startsWith("http")
     ? product.small_image.url
-    : `https://magentodev.winkpayments.io${product.small_image?.url ?? "/placeholder.png"}`;
+    : `https://magentodev.winkpayments.io${product?.small_image?.url ?? "/placeholder.png"}`;
 
   const handleOptionChange = (code: string, value: string) => {
     setSelectedOptions((prev) => ({ ...prev, [code]: value }));
   };
 
   const getSelectedVariantSku = () => {
-    if (!isConfigurable) return product.sku;
+    if (!isConfigurable) return product?.sku;
 
     const match = product.variants.find((variant: any) =>
       variant.attributes.every((attr: any) => selectedOptions[attr.code] === String(attr.value_index))
@@ -106,29 +114,32 @@ export default function ProductDetailPage({ params }: { params: { url_key: strin
 
   const handleAddToCart = async () => {
     const skuToAdd = getSelectedVariantSku();
+
     if (!skuToAdd) {
       alert("Please select all options.");
       return;
     }
 
     const configurableOptions = isConfigurable
-      ? product.configurable_options.map((opt: any) => ({
-          option_id: Number(opt.attribute_id),
-          option_value: Number(selectedOptions[opt.attribute_code]),
-        }))
+      ? product.configurable_options
+          .map((opt: any) => {
+            const value = selectedOptions[opt.attribute_code];
+            if (!value) return null;
+            return {
+              option_id: parseInt(opt.attribute_id, 10),
+              option_value: parseInt(value, 10),
+            };
+          })
+          .filter(Boolean)
       : [];
 
-    // ✅ Check if any selected option is missing
-    if (isConfigurable && configurableOptions.some(opt => isNaN(opt.option_value))) {
-      alert("Please select all options before adding to cart.");
+    if (
+      isConfigurable &&
+      configurableOptions.length !== product.configurable_options.length
+    ) {
+      alert("Please select all required options.");
       return;
     }
-
-    // ✅ Debug logs
-    console.log("Selected Options:", selectedOptions);
-    console.log("Configurable Options:", configurableOptions);
-    console.log("Variant SKU:", skuToAdd);
-    console.log("Parent SKU:", product.sku);
 
     setAdding(true);
     try {
@@ -136,16 +147,21 @@ export default function ProductDetailPage({ params }: { params: { url_key: strin
         skuToAdd,
         1,
         product.__typename,
-        product.sku,
+        isConfigurable ? product.sku : undefined,
         configurableOptions
       );
       alert("Added to cart!");
-    } catch (e) {
-      alert("Failed to add to cart.");
+    } catch (e: any) {
+      console.error("Add to cart failed:", e);
+      alert("Failed to add to cart: " + e.message);
     } finally {
       setAdding(false);
     }
   };
+
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p>{error}</p>;
+  if (!product) return <p>Product not found</p>;
 
   return (
     <section className="p-6">
@@ -171,26 +187,68 @@ export default function ProductDetailPage({ params }: { params: { url_key: strin
           </span>
         </p>
 
-        {/* Configurable options */}
         {isConfigurable && (
           <div className="mt-4">
             {product.configurable_options.map((option: any) => (
               <div key={option.attribute_code} className="mt-2">
                 <label className="block font-medium mb-1">{option.label}</label>
-                <select
-                  className="border px-2 py-1 rounded w-full"
-                  onChange={(e) => handleOptionChange(option.attribute_code, e.target.value)}
-                  defaultValue=""
-                >
-                  <option value="" disabled>
-                    -- Select {option.label} --
-                  </option>
-                  {option.values.map((val: any) => (
-                    <option key={val.value_index} value={val.value_index}>
-                      {val.label}
+
+                {/* 🎨 Color Swatches */}
+                {option.attribute_code === "color" ? (
+                  <div className="flex gap-2">
+                    {option.values.map((val: any) => (
+                      <button
+                        key={val.value_index}
+                        className={`w-8 h-8 rounded-full border-2 ${
+                          selectedOptions[option.attribute_code] === String(val.value_index)
+                            ? "border-black"
+                            : "border-gray-300"
+                        }`}
+                        style={{
+                          backgroundColor: COLOR_MAP[val.label] || "#ccc",
+                        }}
+                        onClick={() =>
+                          handleOptionChange(option.attribute_code, String(val.value_index))
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : option.attribute_code === "size" ? (
+                  // 📏 Size Buttons
+                  <div className="flex gap-2">
+                    {option.values.map((val: any) => (
+                      <button
+                        key={val.value_index}
+                        onClick={() =>
+                          handleOptionChange(option.attribute_code, String(val.value_index))
+                        }
+                        className={`px-3 py-1 border rounded ${
+                          selectedOptions[option.attribute_code] === String(val.value_index)
+                            ? "bg-black text-white"
+                            : "bg-white border-gray-400"
+                        }`}
+                      >
+                        {val.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  // Default Select for other attributes
+                  <select
+                    className="border px-2 py-1 rounded w-full"
+                    onChange={(e) => handleOptionChange(option.attribute_code, e.target.value)}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      -- Select {option.label} --
                     </option>
-                  ))}
-                </select>
+                    {option.values.map((val: any) => (
+                      <option key={val.value_index} value={val.value_index}>
+                        {val.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             ))}
           </div>
