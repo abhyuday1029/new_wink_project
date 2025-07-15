@@ -40,7 +40,7 @@ export async function addToCart(
   quantity = 1,
   productType: string = "SimpleProduct",
   parentSku?: string,
-  configurableOptions?: { option_id: number; option_value: number }[]
+  configurableAttributes?: { uid: string; value_uid: string }[] // 👈 changed this
 ) {
   const cartId = await getOrCreateCart();
   const client = getClient();
@@ -49,71 +49,48 @@ export async function addToCart(
     const isConfigurable = productType === "ConfigurableProduct";
 
     if (isConfigurable) {
-      if (!configurableOptions || !parentSku) {
-        throw new Error("Missing options or parent SKU for configurable product.");
+      if (!configurableAttributes || !parentSku) {
+        throw new Error("Missing attribute selections or parent SKU.");
       }
-
-      const selected_options = buildConfigurableSelectedOptions(configurableOptions);
-
-      const variables = {
-        cartId,
-        cartItems: [
-          {
-            parent_sku: parentSku,
-            data: {
-              quantity,
-              sku: productSku,
-              selected_options, // ✅ FIXED: now inside `data`
-            },
-          },
-        ],
-      };
-
-      console.log("🧪 Sending configurable cart mutation with:", variables);
 
       const result = await client.mutate({
         mutation: ADD_CONFIGURABLE_TO_CART,
-        variables,
+        variables: {
+          cartId,
+          cartItems: [
+            {
+              parent_sku: parentSku,
+              variant: {
+                sku: productSku,
+                quantity,
+                attributes: configurableAttributes,
+              },
+            },
+          ],
+        },
       });
 
       return result.data?.addConfigurableProductsToCart?.cart?.items || [];
     } else {
-      const variables = {
-        cartId,
-        cartItems: [
-          {
-            data: {
-              sku: productSku,
-              quantity,
-            },
-          },
-        ],
-      };
-
-      console.log("🧪 Sending simple cart mutation with:", variables);
-
       const result = await client.mutate({
         mutation: ADD_TO_CART,
-        variables,
+        variables: {
+          cartId,
+          cartItems: [
+            {
+              data: {
+                sku: productSku,
+                quantity,
+              },
+            },
+          ],
+        },
       });
 
       return result.data?.addSimpleProductsToCart?.cart?.items || [];
     }
   } catch (error: any) {
     console.error("❌ Add to cart failed:", error?.message || error);
-
-    if (error.networkError?.result?.errors) {
-      console.error("GraphQL errors:", error.networkError.result.errors);
-    }
-
-    if (error.graphQLErrors) {
-      console.error("GraphQL errors (graphQLErrors):", error.graphQLErrors);
-    }
-
-    if (error.networkError) {
-      console.error("Network error details:", error.networkError);
-    }
-
     throw error;
   }
 }

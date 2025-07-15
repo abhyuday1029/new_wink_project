@@ -110,51 +110,51 @@ export default function ProductDetailPage() {
   };
 
   const handleAddToCart = async () => {
-    const skuToAdd = getSelectedVariantSku();
+  const skuToAdd = getSelectedVariantSku();
 
-    if (!skuToAdd) {
-      alert("Please select all options.");
-      return;
-    }
+  if (!skuToAdd) {
+    alert("Please select all options.");
+    return;
+  }
 
-    const configurableOptions = isConfigurable
-      ? product.configurable_options
-          .map((opt: any) => {
-            const value = selectedOptions[opt.attribute_code];
-            if (!value) return null;
-            return {
-              option_id: parseInt(opt.attribute_id, 10),
-              option_value: parseInt(value, 10),
-            };
-          })
-          .filter(Boolean)
-      : [];
+  const configurableAttributes = isConfigurable
+    ? product.configurable_options
+        .map((opt: any) => {
+          const value = selectedOptions[opt.attribute_code];
+          if (!value) return null;
+          return {
+            code: opt.attribute_code,
+            value_index: parseInt(value, 10),
+          };
+        })
+        .filter(Boolean)
+    : [];
 
-    if (
-      isConfigurable &&
-      configurableOptions.length !== product.configurable_options.length
-    ) {
-      alert("Please select all required options.");
-      return;
-    }
+  if (
+    isConfigurable &&
+    configurableAttributes.length !== product.configurable_options.length
+  ) {
+    alert("Please select all required options.");
+    return;
+  }
 
-    setAdding(true);
-    try {
-      await addToCart(
-        skuToAdd,
-        1,
-        product.__typename,
-        isConfigurable ? product.sku : undefined,
-        configurableOptions
-      );
-      alert("Added to cart!");
-    } catch (e: any) {
-      console.error("Add to cart failed:", e);
-      alert("Failed to add to cart: " + e.message);
-    } finally {
-      setAdding(false);
-    }
-  };
+  setAdding(true);
+  try {
+    await addToCart(
+      skuToAdd,
+      1,
+      product.__typename,
+      isConfigurable ? product.sku : undefined,
+      configurableAttributes
+    );
+    alert("Added to cart!");
+  } catch (e: any) {
+    console.error("Add to cart failed:", e);
+    alert("Failed to add to cart: " + e.message);
+  } finally {
+    setAdding(false);
+  }
+};
 
   if (loading) return <p>Loading...</p>;
   if (error) return <p>{error}</p>;
