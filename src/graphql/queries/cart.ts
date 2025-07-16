@@ -20,8 +20,8 @@ export const ADD_TO_CART = gql`
           id
           quantity
           product {
-            sku
             name
+            sku
           }
         }
       }
@@ -35,18 +35,46 @@ export const ADD_CONFIGURABLE_TO_CART = gql`
     $cartItems: [ConfigurableProductCartItemInput!]!
   ) {
     addConfigurableProductsToCart(
-      input: {
-        cart_id: $cartId
-        cart_items: $cartItems
-      }
+      input: { cart_id: $cartId, cart_items: $cartItems }
     ) {
       cart {
         items {
           id
           quantity
           product {
-            sku
             name
+            sku
+          }
+          ... on ConfigurableCartItem {
+            configurable_options {
+              option_label
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export const GET_CART = gql`
+  query GetCart($cartId: String!) {
+    cart(cart_id: $cartId) {
+      items {
+        id
+        quantity
+        product {
+          name
+          sku
+          small_image {
+            url
+          }
+          price_range {
+            minimum_price {
+              final_price {
+                value
+                currency
+              }
+            }
           }
         }
       }

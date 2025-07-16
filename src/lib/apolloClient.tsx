@@ -9,7 +9,7 @@ const httpsAgent = new https.Agent({
 
 export const getClient = () =>
   new ApolloClient({
-    ssrMode: true,
+    ssrMode: false,
     link: new HttpLink({
       uri: "https://magentodev.winkpayments.io/graphql",
       headers: {
