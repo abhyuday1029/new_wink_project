@@ -78,6 +78,32 @@ export const GET_CART = gql`
           }
         }
       }
+      prices {
+        subtotal_excluding_tax {
+          value
+          currency
+        }
+      }
+    }
+  }
+`;
+
+export const REMOVE_ITEM_FROM_CART = gql`
+  mutation RemoveItemFromCart($cartId: String!, $cart_item_id: Int!) {
+    removeItemFromCart(input: {
+      cart_id: $cartId,
+      cart_item_id: $cart_item_id
+    }) {
+      cart {
+        items {
+          id
+          quantity
+          product {
+            name
+            sku
+          }
+        }
+      }
     }
   }
 `;
