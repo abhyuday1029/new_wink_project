@@ -41,6 +41,7 @@ const OrderList = () => {
   });
 
   const cartItems = data?.cart?.items || [];
+  const subtotal = cartItems.reduce((sum: number, item: any) => sum + (item.prices?.row_total?.value || 0), 0);
   const grandTotal = data?.cart?.prices?.grand_total?.value || 0;
 
   if (loading) return <p className="p-4 text-sm text-gray-500">Loading order items...</p>;
@@ -73,9 +74,9 @@ const OrderList = () => {
 
       {cartItems.length > 0 && (
         <div className="flex items-center justify-between pt-5">
-          <p className="font-medium text-lg text-dark">Total</p>
+          <p className="font-medium text-lg text-dark">Subtotal</p>
           <p className="font-medium text-lg text-dark text-right">
-            ${grandTotal.toFixed(2)}
+            ${subtotal.toFixed(2)}
           </p>
         </div>
       )}
